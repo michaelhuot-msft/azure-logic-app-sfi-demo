@@ -7,28 +7,28 @@ Automated patient referral intake and priority-based routing using Azure Logic A
 ```mermaid
 flowchart LR
     subgraph Client
-        A[test-referral.ps1<br/>HTTP POST]
+        A["test-referral.ps1 (HTTP POST)"]
     end
 
-    subgraph api["API Layer"]
-        B[API Management<br/>Consumption Tier<br/>Rate Limited: 10/min]
+    subgraph api["API Layer ⚬ optional"]
+        B["API Management\nConsumption Tier\nRate Limited: 10/min"]
     end
 
     subgraph processing["Processing"]
-        C[Logic App: Intake<br/>Validate & Enrich<br/>Add correlationId]
-        F[Logic App: Router<br/>Priority Check]
+        C["Logic App: Intake\nValidate & Enrich\nAdd correlationId"]
+        F["Logic App: Router\nPriority Check"]
     end
 
     subgraph messaging["Service Bus Queues"]
         D[incoming-referrals]
-        G[urgent-referrals<br/>priority = urgent / high]
-        H[standard-referrals<br/>priority = normal / low]
+        G["urgent-referrals\npriority = urgent / high"]
+        H["standard-referrals\npriority = normal / low"]
     end
 
-    subgraph security["Cross-Cutting Services"]
-        I[Key Vault<br/>Connection Strings]
-        J[Log Analytics<br/>Diagnostics & Audit]
-        K[Managed Identity<br/>RBAC — No Passwords]
+    subgraph security["Cross-Cutting Services ⚬ optional"]
+        I["Key Vault\nConnection Strings"]
+        J["Log Analytics\nDiagnostics & Audit"]
+        K["Managed Identity\nRBAC — No Passwords"]
     end
 
     A -->|HTTPS + API Key| B
@@ -46,6 +46,9 @@ flowchart LR
     J -.->|logs| D
     K -.->|auth| C
     K -.->|auth| F
+
+    style api fill:#f5f5f5,stroke:#595959,stroke-dasharray: 5 5,color:#1a1a1a
+    style security fill:#f5f5f5,stroke:#595959,stroke-dasharray: 5 5,color:#1a1a1a
 ```
 
 ## Prerequisites
@@ -115,15 +118,22 @@ azure-logic-app-demo/
 
 ### Deployment Order
 
-```
-log-analytics ─────────────────────────────────────────────────────┐
-service-bus ──┬── key-vault                                        │
-              └── api-connections ──┬── logic-app-intake ──┬── apim│
-                                   └── logic-app-router ──┤       │
-                                                          │       │
-                                       role-assignments ◄─┘       │
-                                       grafana ◄─────────────────┐│
-                                       diagnostics ◄─────────────┘┘
+```mermaid
+flowchart LR
+    LA[log-analytics] --> DIAG[diagnostics]
+    SB[service-bus] --> KV[key-vault]
+    SB --> AC[api-connections]
+    AC --> INTAKE[logic-app-intake]
+    AC --> ROUTER[logic-app-router]
+    INTAKE --> APIM[apim]
+    INTAKE --> RA[role-assignments]
+    ROUTER --> RA
+    LA --> GRAFANA[grafana]
+    LA --> DIAG
+    SB --> DIAG
+    KV --> DIAG
+    INTAKE --> DIAG
+    APIM --> DIAG
 ```
 
 ## Referral Schema
