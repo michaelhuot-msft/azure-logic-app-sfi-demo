@@ -1,0 +1,15 @@
+# Compiled ARM templates
+main.json
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+*.swp
+
+# Azure
+.azure/
+
+# Claude Code
+.claude/
