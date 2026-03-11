@@ -16,8 +16,14 @@ resource namespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' = {
   location: location
   tags: tags
   sku: {
-    name: 'Standard'
-    tier: 'Standard'
+    name: 'Premium'
+    tier: 'Premium'
+    capacity: 1
+  }
+  properties: {
+    publicNetworkAccess: 'Disabled'
+    minimumTlsVersion: '1.2'
+    premiumMessagingPartitions: 1
   }
 }
 
@@ -54,8 +60,36 @@ resource standardQueue 'Microsoft.ServiceBus/namespaces/queues@2022-10-01-previe
   }
 }
 
+// Per-application authorization rules (least-privilege, replaces RootManageSharedAccessKey usage)
+resource intakeSenderRule 'Microsoft.ServiceBus/namespaces/authorizationRules@2022-10-01-preview' = {
+  parent: namespace
+  name: 'intake-sender-key'
+  properties: {
+    rights: [
+      'Send'
+    ]
+  }
+}
+
+resource routerReceiverRule 'Microsoft.ServiceBus/namespaces/authorizationRules@2022-10-01-preview' = {
+  parent: namespace
+  name: 'router-receiver-key'
+  properties: {
+    rights: [
+      'Listen'
+      'Send'
+    ]
+  }
+}
+
 @description('Service Bus namespace name')
 output namespaceName string = namespace.name
 
 @description('Service Bus namespace resource ID')
 output namespaceId string = namespace.id
+
+@description('Intake sender authorization rule name')
+output intakeSenderRuleName string = intakeSenderRule.name
+
+@description('Router receiver authorization rule name')
+output routerReceiverRuleName string = routerReceiverRule.name

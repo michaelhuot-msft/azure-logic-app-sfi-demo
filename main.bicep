@@ -20,6 +20,15 @@ param publisherName string = 'Healthcare Demo'
 @description('Optional Entra object ID for a user that should receive Grafana Admin access')
 param grafanaAdminPrincipalId string = ''
 
+@description('Email address for alert notifications')
+param alertEmailAddress string = 'admin@healthcaredemo.com'
+
+@description('VNet address space CIDR')
+param vnetAddressPrefix string = '10.0.0.0/16'
+
+@description('Azure AD tenant ID for APIM JWT validation (leave empty to skip)')
+param apimTenantId string = ''
+
 var suffix = uniqueString(resourceGroup().id)
 var baseName = 'hlth-${environment}-${suffix}'
 var tags = {
@@ -37,6 +46,19 @@ module logAnalytics 'modules/log-analytics.bicep' = {
     location: location
     baseName: baseName
     tags: tags
+  }
+}
+
+// ──────────────────────────────────────────────
+// 1b. Virtual Network (SFI Zero Trust — network isolation)
+// ──────────────────────────────────────────────
+module vnet 'modules/virtual-network.bicep' = {
+  name: 'deploy-vnet'
+  params: {
+    location: location
+    baseName: baseName
+    tags: tags
+    vnetAddressPrefix: vnetAddressPrefix
   }
 }
 
@@ -63,6 +85,22 @@ module keyVault 'modules/key-vault.bicep' = {
     tags: tags
     serviceBusNamespaceName: serviceBus.outputs.namespaceName
     tenantId: subscription().tenantId
+  }
+}
+
+// ──────────────────────────────────────────────
+// 3b. Private Endpoints (SFI Zero Trust — network isolation)
+// ──────────────────────────────────────────────
+module privateEndpoints 'modules/private-endpoints.bicep' = {
+  name: 'deploy-private-endpoints'
+  params: {
+    location: location
+    baseName: baseName
+    tags: tags
+    privateEndpointSubnetId: vnet.outputs.privateEndpointSubnetId
+    vnetId: vnet.outputs.vnetId
+    serviceBusNamespaceId: serviceBus.outputs.namespaceId
+    keyVaultId: keyVault.outputs.vaultId
   }
 }
 
@@ -132,6 +170,7 @@ module apim 'modules/apim.bicep' = {
     intakeCallbackUrl: listCallbackUrl('${resourceId('Microsoft.Logic/workflows', '${baseName}-intake')}/triggers/manual', '2019-05-01').value
     publisherEmail: publisherEmail
     publisherName: publisherName
+    tenantId: apimTenantId
   }
 }
 
@@ -161,6 +200,22 @@ module diagnostics 'modules/diagnostics.bicep' = {
     serviceBusNamespaceName: serviceBus.outputs.namespaceName
     keyVaultName: keyVault.outputs.vaultName
     apimName: '${baseName}-apim'
+  }
+}
+
+// ──────────────────────────────────────────────
+// 11. Alerts & Incident Response (SFI Audit + WAF Reliability)
+// ──────────────────────────────────────────────
+module alerts 'modules/alerts.bicep' = {
+  name: 'deploy-alerts'
+  params: {
+    baseName: baseName
+    workspaceId: logAnalytics.outputs.workspaceId
+    serviceBusNamespaceName: serviceBus.outputs.namespaceName
+    keyVaultName: keyVault.outputs.vaultName
+    intakeLogicAppName: intakeLogicApp.outputs.name
+    routerLogicAppName: routerLogicApp.outputs.name
+    alertEmailAddress: alertEmailAddress
   }
 }
 

@@ -1,0 +1,93 @@
+# Copyright 2025 HACS Group
+# Licensed under the Apache License, Version 2.0
+
+name: Deploy Healthcare Demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      resource_group:
+        description: 'Resource group name'
+        required: true
+        default: 'rg-healthcare-referral-demo'
+      location:
+        description: 'Azure region'
+        required: true
+        default: 'eastus2'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate Deployment
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az group create --name ${{ inputs.resource_group }} --location ${{ inputs.location }} --output none
+            az deployment group validate \
+              --resource-group ${{ inputs.resource_group }} \
+              --template-file main.bicep \
+              --parameters parameters/${{ inputs.environment }}.bicepparam
+
+  deploy:
+    name: Deploy (${{ inputs.environment }})
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Infrastructure
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az deployment group create \
+              --resource-group ${{ inputs.resource_group }} \
+              --template-file main.bicep \
+              --parameters parameters/${{ inputs.environment }}.bicepparam \
+              --name "deploy-${{ inputs.environment }}-$(date +%Y%m%d%H%M%S)"
+
+      - name: Post-Deploy Validation
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            echo "Validating deployed resources..."
+            az resource list \
+              --resource-group ${{ inputs.resource_group }} \
+              --query "[].{Name:name, Type:type, Status:provisioningState}" \
+              --output table

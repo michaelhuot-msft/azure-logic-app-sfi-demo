@@ -18,6 +18,9 @@ param publisherEmail string
 @description('Publisher name for APIM')
 param publisherName string
 
+@description('Azure AD tenant ID for JWT validation (leave empty to skip OAuth)')
+param tenantId string = ''
+
 var apimName = '${baseName}-apim'
 
 resource apim 'Microsoft.ApiManagement/service@2023-05-01-preview' = {
@@ -25,8 +28,8 @@ resource apim 'Microsoft.ApiManagement/service@2023-05-01-preview' = {
   location: location
   tags: tags
   sku: {
-    name: 'Consumption'
-    capacity: 0
+    name: 'StandardV2'
+    capacity: 1
   }
   properties: {
     publisherEmail: publisherEmail
@@ -71,13 +74,16 @@ resource backendUrlNamedValue 'Microsoft.ApiManagement/service/namedValues@2023-
   }
 }
 
+// JWT validation policy fragment — injected when tenantId is provided
+var jwtPolicyFragment = !empty(tenantId) ? '<validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized"><openid-config url="${environment().authentication.loginEndpoint}${tenantId}/v2.0/.well-known/openid-configuration" /></validate-jwt>' : ''
+
 resource operationPolicy 'Microsoft.ApiManagement/service/apis/operations/policies@2023-05-01-preview' = {
   parent: postOperation
   name: 'policy'
   dependsOn: [backendUrlNamedValue]
   properties: {
     format: 'rawxml'
-    value: '<policies><inbound><base /><rate-limit calls="10" renewal-period="60" /><set-variable name="backendUrl" value="{{logic-app-callback-url}}" /><send-request mode="copy" response-variable-name="backendResponse" timeout="30" ignore-error="false"><set-url>@((string)context.Variables["backendUrl"])</set-url><set-method>POST</set-method></send-request><return-response response-variable-name="backendResponse" /></inbound><backend><base /></backend><outbound><base /></outbound><on-error><base /></on-error></policies>'
+    value: '<policies><inbound><base /><rate-limit calls="10" renewal-period="60" />${jwtPolicyFragment}<set-variable name="backendUrl" value="{{logic-app-callback-url}}" /><send-request mode="copy" response-variable-name="backendResponse" timeout="30" ignore-error="false"><set-url>@((string)context.Variables["backendUrl"])</set-url><set-method>POST</set-method></send-request><return-response response-variable-name="backendResponse" /></inbound><backend><base /></backend><outbound><base /></outbound><on-error><base /></on-error></policies>'
   }
 }
 

@@ -1,0 +1,48 @@
+# Copyright 2025 HACS Group
+# Licensed under the Apache License, Version 2.0
+
+name: Validate Bicep
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.bicep'
+      - '**.bicepparam'
+      - 'bicepconfig.json'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.bicep'
+      - '**.bicepparam'
+      - 'bicepconfig.json'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Bicep CLI
+        run: |
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x bicep
+          sudo mv bicep /usr/local/bin/
+
+      - name: Bicep Lint
+        run: bicep lint main.bicep
+
+      - name: Bicep Build
+        run: bicep build main.bicep --stdout > /dev/null
+
+      - name: Validate Module Syntax
+        run: |
+          for file in modules/*.bicep; do
+            echo "Validating $file..."
+            bicep build "$file" --stdout > /dev/null 2>&1 || echo "::warning::$file has standalone build issues (may require parameters)"
+          done

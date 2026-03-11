@@ -22,9 +22,9 @@ resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview
   name: serviceBusNamespaceName
 }
 
-resource serviceBusRootManageSharedAccessKey 'Microsoft.ServiceBus/namespaces/authorizationRules@2022-10-01-preview' existing = {
+resource serviceBusIntakeSenderRule 'Microsoft.ServiceBus/namespaces/authorizationRules@2022-10-01-preview' existing = {
   parent: serviceBusNamespace
-  name: 'RootManageSharedAccessKey'
+  name: 'intake-sender-key'
 }
 
 resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {
@@ -39,7 +39,9 @@ resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     tenantId: tenantId
     enableRbacAuthorization: true
     enableSoftDelete: true
-    softDeleteRetentionInDays: 7
+    softDeleteRetentionInDays: 90
+    enablePurgeProtection: true
+    publicNetworkAccess: 'Disabled'
   }
 }
 
@@ -47,7 +49,7 @@ resource sbConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01'
   parent: vault
   name: 'ServiceBusConnectionString'
   properties: {
-    value: serviceBusRootManageSharedAccessKey.listKeys().primaryConnectionString
+    value: serviceBusIntakeSenderRule.listKeys().primaryConnectionString
     contentType: 'text/plain'
   }
 }
