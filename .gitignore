@@ -13,3 +13,6 @@ main.json
 
 # Claude Code
 .claude/
+
+# Copyrighted / third-party materials
+*.pdf
