@@ -73,6 +73,72 @@ flowchart LR
 az group delete --name rg-healthcare-referral-demo --yes --no-wait
 ```
 
+## Getting the API Endpoint and Subscription Key
+
+After deployment, retrieve the APIM endpoint and subscription key:
+
+```powershell
+# Get the APIM gateway URL
+$rg = "rg-healthcare-referral-demo"
+$apimName = az resource list -g $rg --resource-type Microsoft.ApiManagement/service --query "[0].name" -o tsv
+$gateway = az apim show -n $apimName -g $rg --query "gatewayUrl" -o tsv
+$endpoint = "$gateway/referrals/submit"
+
+# Get the subscription key
+$subKey = az apim subscription show -g $rg -n $apimName --subscription-id "referral-subscription" --query "primaryKey" -o tsv
+
+Write-Host "Endpoint: $endpoint"
+Write-Host "Key:      $subKey"
+```
+
+These values are also printed at the end of `./deploy.ps1` output.
+
+## Testing Scripts
+
+Three scripts are included for different testing scenarios. All require `-ApiEndpoint` and `-SubscriptionKey` parameters.
+
+### Quick smoke test
+
+Sends 3 referrals (urgent, normal, invalid) to verify the pipeline works:
+
+```powershell
+./test-referral.ps1 -ApiEndpoint $endpoint -SubscriptionKey $subKey
+```
+
+### Load test (burst traffic)
+
+Sends a large batch with variable timing to generate chart-worthy Grafana data:
+
+```powershell
+# Default: 3 rounds × 15 patients + 2 invalid per round = 51 referrals
+./test-referral-load.ps1 -ApiEndpoint $endpoint -SubscriptionKey $subKey
+
+# More data with slower pacing
+./test-referral-load.ps1 -ApiEndpoint $endpoint -SubscriptionKey $subKey -Rounds 5 -MaxDelayMs 8000
+```
+
+### Soak test (pre-demo warmup)
+
+Runs continuously at low volume so Grafana dashboards have data spread across time when you present. **Start this 30-60 minutes before your demo**:
+
+```powershell
+# Default: 60 minutes, ~1 referral every 45 seconds (~80 total)
+./test-referral-soak.ps1 -ApiEndpoint $endpoint -SubscriptionKey $subKey
+
+# Custom duration and pacing
+./test-referral-soak.ps1 -ApiEndpoint $endpoint -SubscriptionKey $subKey -DurationMinutes 90 -IntervalSeconds 30
+
+# Press Ctrl+C to stop early (summary always prints)
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `-DurationMinutes` | 60 | How long to run |
+| `-IntervalSeconds` | 45 | Average time between requests (±40% jitter) |
+| `-ErrorRate` | 0.08 | Fraction of requests that are intentionally invalid |
+
+> **Tip:** Log Analytics has a 5-10 minute ingestion delay. Start the soak test early enough that data appears in Grafana before your audience arrives.
+
 ## Project Structure
 
 ```
@@ -80,6 +146,8 @@ azure-logic-app-demo/
 ├── main.bicep                          # Orchestrator — calls all modules in dependency order
 ├── deploy.ps1                          # Deploys infrastructure + validates resources
 ├── test-referral.ps1                   # Sends 3 synthetic test referrals
+├── test-referral-load.ps1              # Burst load test for Grafana chart data
+├── test-referral-soak.ps1              # Continuous low-volume sender (pre-demo warmup)
 ├── demo-helper.ps1                     # Pre-demo validation + Portal links + cheat sheet
 ├── parameters/
 │   └── dev.bicepparam                  # Dev environment parameters
