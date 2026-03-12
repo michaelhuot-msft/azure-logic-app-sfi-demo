@@ -24,3 +24,5 @@ param connectorOutboundIpRanges = [
   '104.209.247.23/32'
   '104.210.14.156/32'
 ]
+param deployBastion = true
+param jumpboxAdminPassword = readEnvironmentVariable('JUMPBOX_PASSWORD', '')

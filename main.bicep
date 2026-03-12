@@ -32,6 +32,13 @@ param apimTenantId string = ''
 @description('Connector outbound IP ranges for Service Bus firewall (AzureConnectors service tag for your region)')
 param connectorOutboundIpRanges array = []
 
+@description('Deploy Azure Bastion + jumpbox VM for demo access to private resources')
+param deployBastion bool = true
+
+@secure()
+@description('Admin password for the jumpbox VM (required when deployBastion is true)')
+param jumpboxAdminPassword string = ''
+
 var suffix = uniqueString(resourceGroup().id)
 var baseName = 'hlth-${environment}-${suffix}'
 var tags = {
@@ -224,6 +231,21 @@ module alerts 'modules/alerts.bicep' = {
 }
 
 // ──────────────────────────────────────────────
+// 12. Azure Bastion + Jumpbox VM (demo access to private resources)
+// ──────────────────────────────────────────────
+module bastion 'modules/bastion.bicep' = if (deployBastion) {
+  name: 'deploy-bastion'
+  params: {
+    location: location
+    baseName: baseName
+    tags: tags
+    vnetId: vnet.outputs.vnetId
+    jumpboxSubnetId: vnet.outputs.jumpboxSubnetId
+    adminPassword: jumpboxAdminPassword
+  }
+}
+
+// ──────────────────────────────────────────────
 // Outputs
 // ──────────────────────────────────────────────
 @description('APIM gateway URL for testing')
@@ -246,3 +268,6 @@ output grafanaEndpoint string = grafana.outputs.endpoint
 
 @description('Grafana resource name')
 output grafanaName string = grafana.outputs.name
+
+@description('Jumpbox VM name (empty if bastion not deployed)')
+output jumpboxVmName string = deployBastion ? bastion.outputs.vmName : 'not-deployed'

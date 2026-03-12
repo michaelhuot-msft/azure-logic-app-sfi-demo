@@ -22,6 +22,9 @@ param privateEndpointSubnetPrefix string = '10.0.2.0/24'
 @description('Subnet CIDR for Logic Apps VNet integration')
 param logicAppsSubnetPrefix string = '10.0.3.0/24'
 
+@description('Subnet CIDR for jumpbox VM')
+param jumpboxSubnetPrefix string = '10.0.4.0/24'
+
 var vnetName = '${baseName}-vnet'
 
 resource nsgApim 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
@@ -200,6 +203,15 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
           ]
         }
       }
+      {
+        name: 'snet-jumpbox'
+        properties: {
+          addressPrefix: jumpboxSubnetPrefix
+          networkSecurityGroup: {
+            id: nsgPrivateEndpoints.id
+          }
+        }
+      }
     ]
   }
 }
@@ -218,3 +230,6 @@ output privateEndpointSubnetId string = vnet.properties.subnets[1].id
 
 @description('Logic Apps subnet resource ID')
 output logicAppsSubnetId string = vnet.properties.subnets[2].id
+
+@description('Jumpbox subnet resource ID')
+output jumpboxSubnetId string = vnet.properties.subnets[3].id
