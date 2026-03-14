@@ -1,0 +1,62 @@
+========================================================================
+ Flow Logs & Network Security — CLI Diagnostics
+ Generated: 2026-03-14 23:11:35 UTC
+ Resource Group: rg-healthcare-referral-sfi-demo
+========================================================================
+
+=== VNet Flow Log Configuration ===
+Name:              hlth-dev-l2mpejlchzvp6-flowlog-vnet
+Enabled:           True
+Target VNet:       hlth-dev-l2mpejlchzvp6-vnet
+Storage Account:   hlthdevl2mpejlchzvp6flow
+Retention (days):  30
+Traffic Analytics: Enabled (10-minute interval)
+Log Analytics:     hlth-dev-l2mpejlchzvp6-law
+Format:            JSON v2
+
+=== Network Topology (from Traffic Analytics / Log Analytics) ===
+Resource Type            Name                                                    NSG Association
+------------------------ ------------------------------------------------------- --------------------------------
+VirtualNetwork           hlth-dev-l2mpejlchzvp6-vnet (10.0.0.0/16)
+VirtualSubnetwork        hlth-dev-l2mpejlchzvp6-vnet/snet-apim                   nsg-apim
+VirtualSubnetwork        hlth-dev-l2mpejlchzvp6-vnet/snet-private-endpoints      nsg-pe
+VirtualSubnetwork        hlth-dev-l2mpejlchzvp6-vnet/snet-logic-apps             nsg-pe
+VirtualSubnetwork        hlth-dev-l2mpejlchzvp6-vnet/snet-jumpbox                nsg-pe
+VirtualMachine           hlth-dev-l2mpejlchzvp6-jbox                             (deallocated)
+
+=== NSG Rules — APIM Subnet (hlth-dev-l2mpejlchzvp6-nsg-apim) ===
+Name                    Priority  Direction  Access  Protocol  Source             Dest Port
+----------------------- --------- ---------- ------- --------- ------------------ ---------
+Allow-APIM-Management   100       Inbound    Allow   Tcp       ApiManagement      3443
+Allow-HTTPS-Inbound     110       Inbound    Allow   Tcp       Internet           443
+Allow-LoadBalancer       120       Inbound    Allow   *         AzureLoadBalancer  6390
+Allow-Storage-Outbound   100       Outbound   Allow   Tcp       VirtualNetwork     443
+Allow-SQL-Outbound       110       Outbound   Allow   Tcp       VirtualNetwork     1433
+Allow-AzureAD-Outbound   120       Outbound   Allow   Tcp       VirtualNetwork     443
+
+=== NSG Rules — PE Subnet (hlth-dev-l2mpejlchzvp6-nsg-pe) ===
+Name                Priority  Direction  Access  Protocol  Source          Dest Port
+------------------- --------- ---------- ------- --------- --------------- ---------
+Allow-VNet-Inbound  100       Inbound    Allow   *         VirtualNetwork  *
+Deny-All-Inbound    4096      Inbound    Deny    *         *               *
+
+=== Private Endpoints ===
+Name                                Service    Target
+----------------------------------- ---------- ---------------------------
+hlth-dev-l2mpejlchzvp6-pe-grafana   grafana    Managed Grafana
+hlth-dev-l2mpejlchzvp6-pe-kv        vault      Key Vault
+hlth-dev-l2mpejlchzvp6-pe-sb        namespace  Service Bus Namespace
+
+=== Private DNS Zones ===
+Zone                                  Records  A-Record FQDNs
+------------------------------------- -------- -------------------------------------------
+privatelink.grafana.azure.com         3        grf-*.eus2.privatelink.grafana.azure.com
+privatelink.servicebus.windows.net    2        hlth-dev-*-sbns.privatelink.servicebus.windows.net
+privatelink.vaultcore.azure.net       2        hlth-dev-*-k.privatelink.vaultcore.azure.net
+
+========================================================================
+ Summary: VNet flow logs are enabled with Traffic Analytics feeding
+ into Log Analytics. All private endpoints resolve via Private DNS.
+ NSGs enforce least-privilege: APIM allows HTTPS/management only,
+ PE subnet allows VNet traffic only with deny-all default.
+========================================================================
