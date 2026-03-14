@@ -22,17 +22,25 @@ Use this file as the single coordination point for multi-agent work.
 | Item | Priority | Owner | Branch | Status | Notes |
 |---|---|---|---|---|---|
 | Dashboard reliability and demo flow | High | GitHub Copilot | main | In progress | Stabilize Grafana panel behavior |
+| L300 alignment improvements | High | GitHub Copilot | agent/copilot/l300-alignment | PR #2 open | Retry, scopes, parallel, App Insights |
 
 ## Active File Locks
 
 | File | Locked By | Started (UTC) | Purpose |
 |---|---|---|---|
 | docs/grafana-dashboard.json | GitHub Copilot | 2026-02-27 | Panel query/reducer stability |
+| modules/logic-app-intake.bicep | GitHub Copilot | 2026-03-03 | L300: scopes, parallel, retry |
+| modules/logic-app-router.bicep | GitHub Copilot | 2026-03-03 | L300: retry policies |
+| modules/diagnostics.bicep | GitHub Copilot | 2026-03-03 | L300: App Insights |
+| docs/demo-script.md | GitHub Copilot | 2026-03-03 | L300: updated talking points |
 
 ## Last Completed Changes
 
 | UTC | Agent | Branch | Commit | Summary |
 |---|---|---|---|---|
+| 2026-03-11 | GitHub Copilot | agent/copilot/l300-alignment | 1b4fa4d | Fix App Insights diag settings (data flows via shared workspace) |
+| 2026-03-11 | GitHub Copilot | agent/copilot/l300-alignment | f293514 | Fix retryPolicy placement (inside inputs, not runtimeConfiguration) |
+| 2026-03-11 | GitHub Copilot | agent/copilot/l300-alignment | f545b84 | L300 alignment: retry, scopes, parallel, App Insights, JSON fix |
 | 2026-02-27 | GitHub Copilot | main | c6cd68a | Enforced Grafana time window in Log Analytics panels |
 | 2026-02-27 | GitHub Copilot | main | c2ace04 | Added referral load test helper script |
 
@@ -40,6 +48,9 @@ Use this file as the single coordination point for multi-agent work.
 
 | UTC | Agent | What Ran | Result |
 |---|---|---|---|
+| 2026-03-11 | GitHub Copilot | deploy.ps1 (L300 branch) | Passed — all resources deployed |
+| 2026-03-11 | GitHub Copilot | test-referral.ps1 (L300 branch) | Passed (202, 202, 400 expected) |
+| 2026-03-11 | GitHub Copilot | az bicep build --file main.bicep | Passed (L300 branch) |
 | 2026-02-27 | GitHub Copilot | deploy.ps1 full run | Passed |
 | 2026-02-27 | GitHub Copilot | test-referral.ps1 | Passed (202,202,400 expected) |
 | 2026-02-27 | GitHub Copilot | Service Bus queue sampling | urgent=8, standard=8, incoming=0 stable |

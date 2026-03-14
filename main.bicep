@@ -181,7 +181,6 @@ module diagnostics 'modules/diagnostics.bicep' = {
   params: {
     workspaceId: logAnalytics.outputs.workspaceId
     intakeLogicAppName: logicAppStandard.outputs.name
-    routerLogicAppName: logicAppStandard.outputs.name
     serviceBusNamespaceName: serviceBus.outputs.namespaceName
     keyVaultName: keyVault.outputs.vaultName
     apimName: '${baseName}-apim'
@@ -199,7 +198,6 @@ module alerts 'modules/alerts.bicep' = {
     serviceBusNamespaceName: serviceBus.outputs.namespaceName
     keyVaultName: keyVault.outputs.vaultName
     intakeLogicAppName: logicAppStandard.outputs.name
-    routerLogicAppName: logicAppStandard.outputs.name
     alertEmailAddress: alertEmailAddress
   }
 }

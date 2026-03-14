@@ -90,8 +90,8 @@ if (-not [string]::IsNullOrWhiteSpace($grafanaAdminPrincipalId)) {
 
 Write-Host "`n[3/6] Deploying infrastructure (this takes ~5-6 minutes)..." -ForegroundColor Yellow
 Write-Host "  Deploying: Log Analytics, VNet, Service Bus (Premium), Key Vault," -ForegroundColor Gray
-Write-Host "             Private Endpoints, Logic Apps, APIM (StandardV2)," -ForegroundColor Gray
-Write-Host "             Grafana, Diagnostics, Alerts" -ForegroundColor Gray
+Write-Host "             Private Endpoints, Logic App Standard (VNet-integrated)," -ForegroundColor Gray
+Write-Host "             APIM (StandardV2), Grafana, Diagnostics, Alerts" -ForegroundColor Gray
 
 $deploymentName = "healthcare-demo-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 
@@ -144,6 +144,44 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($outputsJson)) {
 $outputs = $outputsJson | ConvertFrom-Json
 Write-Host "  Deployment: OK" -ForegroundColor Green
 
+# ── Deploy Workflow Definitions ──────────────────────────────────────────────
+
+Write-Host "`n[3b/6] Deploying workflow definitions to Logic App Standard..." -ForegroundColor Yellow
+
+$logicAppName = $outputs.logicAppStandardName.value
+
+# Create ZIP package from workflows directory
+$workflowZipPath = Join-Path $env:TEMP "logic-app-workflows-$deploymentName.zip"
+if (Test-Path $workflowZipPath) { Remove-Item $workflowZipPath -Force }
+
+# Build the content package: host.json + connections.json + workflow folders at root
+$stagingDir = Join-Path $env:TEMP "logic-app-staging-$deploymentName"
+if (Test-Path $stagingDir) { Remove-Item $stagingDir -Recurse -Force }
+New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
+
+Copy-Item -Path "workflows/host.json" -Destination $stagingDir
+Copy-Item -Path "workflows/connections.json" -Destination $stagingDir
+Copy-Item -Path "workflows/intake" -Destination "$stagingDir/intake" -Recurse
+Copy-Item -Path "workflows/router" -Destination "$stagingDir/router" -Recurse
+
+Compress-Archive -Path "$stagingDir/*" -DestinationPath $workflowZipPath -Force
+
+az webapp deployment source config-zip `
+    --resource-group $ResourceGroupName `
+    --name $logicAppName `
+    --src $workflowZipPath `
+    --output none 2>&1
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Warning "Workflow ZIP deploy failed. You may need to deploy workflows manually."
+} else {
+    Write-Host "  Workflow definitions deployed: OK" -ForegroundColor Green
+}
+
+# Cleanup staging
+Remove-Item $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item $workflowZipPath -Force -ErrorAction SilentlyContinue
+
 # ── Post-Deploy Validation ──────────────────────────────────────────────
 
 Write-Host "`n[4/6] Validating deployed resources..." -ForegroundColor Yellow
@@ -155,8 +193,9 @@ $expectedTypes = @(
     "Microsoft.OperationalInsights/workspaces",
     "Microsoft.ServiceBus/namespaces",
     "Microsoft.KeyVault/vaults",
-    "Microsoft.Web/connections",
-    "Microsoft.Logic/workflows",
+    "Microsoft.Web/sites",
+    "Microsoft.Web/serverfarms",
+    "Microsoft.Storage/storageAccounts",
     "Microsoft.ApiManagement/service",
     "Microsoft.Dashboard/grafana",
     "Microsoft.Network/virtualNetworks",
@@ -176,12 +215,12 @@ foreach ($type in $expectedTypes) {
     if (-not $found) { $allFound = $false }
 }
 
-# Check Logic Apps count (should be 2)
-$logicApps = $resources | Where-Object { $_.type -eq "Microsoft.Logic/workflows" }
-if ($logicApps.Count -eq 2) {
-    Write-Host "  Logic Apps count (2): OK" -ForegroundColor Green
+# Check Logic App Standard site exists
+$logicAppSites = $resources | Where-Object { $_.type -eq "Microsoft.Web/sites" -and $_.kind -like "*workflowapp*" }
+if ($logicAppSites.Count -ge 1) {
+    Write-Host "  Logic App Standard: OK" -ForegroundColor Green
 } else {
-    Write-Host "  Logic Apps count (expected 2, got $($logicApps.Count)): WARNING" -ForegroundColor Yellow
+    Write-Host "  Logic App Standard: MISSING" -ForegroundColor Red
 }
 
 if (-not $allFound) {

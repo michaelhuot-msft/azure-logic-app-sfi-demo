@@ -13,11 +13,8 @@ param serviceBusNamespaceName string
 @description('Key Vault name (used in KQL query)')
 param keyVaultName string
 
-@description('Intake Logic App name')
+@description('Logic App Standard name')
 param intakeLogicAppName string
-
-@description('Router Logic App name')
-param routerLogicAppName string
 
 @description('Email address for alert notifications')
 param alertEmailAddress string
@@ -48,12 +45,8 @@ resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview
   name: serviceBusNamespaceName
 }
 
-resource intakeLogicApp 'Microsoft.Logic/workflows@2019-05-01' existing = {
+resource logicAppStandard 'Microsoft.Web/sites@2024-04-01' existing = {
   name: intakeLogicAppName
-}
-
-resource routerLogicApp 'Microsoft.Logic/workflows@2019-05-01' existing = {
-  name: routerLogicAppName
 }
 
 // ──────────────────────────────────────────────
@@ -169,17 +162,17 @@ resource kvUnauthorizedAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-
 }
 
 // ──────────────────────────────────────────────
-// Logic App Intake — Failed runs
+// Logic App Standard — HTTP 5xx errors
 // ──────────────────────────────────────────────
-resource intakeFailedAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
-  name: '${baseName}-alert-intake-failures'
+resource logicAppErrorsAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  name: '${baseName}-alert-logicapp-errors'
   location: 'global'
   properties: {
-    description: 'Intake Logic App workflow run failures detected'
+    description: 'Logic App Standard HTTP server errors detected'
     severity: 2
     enabled: true
     scopes: [
-      intakeLogicApp.id
+      logicAppStandard.id
     ]
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
@@ -187,46 +180,9 @@ resource intakeFailedAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
       'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
       allOf: [
         {
-          name: 'RunsFailed'
-          metricName: 'RunsFailed'
-          metricNamespace: 'Microsoft.Logic/workflows'
-          operator: 'GreaterThan'
-          threshold: 0
-          timeAggregation: 'Maximum'
-          criterionType: 'StaticThresholdCriterion'
-        }
-      ]
-    }
-    actions: [
-      {
-        actionGroupId: actionGroup.id
-      }
-    ]
-  }
-}
-
-// ──────────────────────────────────────────────
-// Logic App Router — Failed runs
-// ──────────────────────────────────────────────
-resource routerFailedAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
-  name: '${baseName}-alert-router-failures'
-  location: 'global'
-  properties: {
-    description: 'Router Logic App workflow run failures detected'
-    severity: 2
-    enabled: true
-    scopes: [
-      routerLogicApp.id
-    ]
-    evaluationFrequency: 'PT5M'
-    windowSize: 'PT15M'
-    criteria: {
-      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
-      allOf: [
-        {
-          name: 'RunsFailed'
-          metricName: 'RunsFailed'
-          metricNamespace: 'Microsoft.Logic/workflows'
+          name: 'Http5xx'
+          metricName: 'Http5xx'
+          metricNamespace: 'Microsoft.Web/sites'
           operator: 'GreaterThan'
           threshold: 0
           timeAggregation: 'Maximum'

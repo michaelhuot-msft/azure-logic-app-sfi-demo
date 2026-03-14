@@ -1,0 +1,133 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {},
+    "triggers": {
+      "When_messages_are_available_in_a_queue": {
+        "type": "ServiceProvider",
+        "inputs": {
+          "serviceProviderConfiguration": {
+            "connectionName": "serviceBus",
+            "operationId": "receiveQueueMessages",
+            "serviceProviderId": "/serviceProviders/serviceBus"
+          },
+          "parameters": {
+            "queueName": "incoming-referrals",
+            "isSessionsEnabled": false
+          }
+        }
+      }
+    },
+    "actions": {
+      "Parse_Message": {
+        "type": "ParseJson",
+        "runAfter": {},
+        "inputs": {
+          "content": "@triggerOutputs()?['body']?['contentData']",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "correlationId": { "type": "string" },
+              "receivedAt": { "type": "string" },
+              "patientId": { "type": "string" },
+              "patientName": { "type": "string" },
+              "referralType": { "type": "string" },
+              "priority": { "type": "string" },
+              "diagnosis": {
+                "type": "object",
+                "properties": {
+                  "code": { "type": "string" },
+                  "description": { "type": "string" }
+                }
+              },
+              "referringProvider": { "type": "string" },
+              "notes": { "type": "string" },
+              "status": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Check_Priority": {
+        "type": "If",
+        "runAfter": {
+          "Parse_Message": ["Succeeded"]
+        },
+        "expression": {
+          "or": [
+            {
+              "equals": ["@body('Parse_Message')?['priority']", "urgent"]
+            },
+            {
+              "equals": ["@body('Parse_Message')?['priority']", "high"]
+            }
+          ]
+        },
+        "actions": {
+          "Send_to_Urgent_Queue": {
+            "type": "ServiceProvider",
+            "inputs": {
+              "serviceProviderConfiguration": {
+                "connectionName": "serviceBus",
+                "operationId": "sendMessage",
+                "serviceProviderId": "/serviceProviders/serviceBus"
+              },
+              "parameters": {
+                "entityName": "urgent-referrals",
+                "message": {
+                  "contentData": "@body('Parse_Message')",
+                  "applicationProperties": {
+                    "priority": "@body('Parse_Message')?['priority']",
+                    "correlationId": "@body('Parse_Message')?['correlationId']",
+                    "routedAt": "@{utcNow()}"
+                  }
+                }
+              }
+            },
+            "retryPolicy": {
+              "count": 3,
+              "interval": "PT10S",
+              "type": "exponential",
+              "minimumInterval": "PT10S",
+              "maximumInterval": "PT1H"
+            }
+          }
+        },
+        "else": {
+          "actions": {
+            "Send_to_Standard_Queue": {
+              "type": "ServiceProvider",
+              "inputs": {
+                "serviceProviderConfiguration": {
+                  "connectionName": "serviceBus",
+                  "operationId": "sendMessage",
+                  "serviceProviderId": "/serviceProviders/serviceBus"
+                },
+                "parameters": {
+                  "entityName": "standard-referrals",
+                  "message": {
+                    "contentData": "@body('Parse_Message')",
+                    "applicationProperties": {
+                      "priority": "@body('Parse_Message')?['priority']",
+                      "correlationId": "@body('Parse_Message')?['correlationId']",
+                      "routedAt": "@{utcNow()}"
+                    }
+                  }
+                }
+              },
+              "retryPolicy": {
+                "count": 3,
+                "interval": "PT10S",
+                "type": "exponential",
+                "minimumInterval": "PT10S",
+                "maximumInterval": "PT1H"
+              }
+            }
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

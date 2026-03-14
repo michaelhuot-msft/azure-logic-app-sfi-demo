@@ -3,11 +3,8 @@
 @description('Log Analytics workspace resource ID')
 param workspaceId string
 
-@description('Logic App Intake name')
+@description('Logic App Standard name')
 param intakeLogicAppName string
-
-@description('Logic App Router name')
-param routerLogicAppName string
 
 @description('Service Bus namespace name')
 param serviceBusNamespaceName string
@@ -18,13 +15,13 @@ param keyVaultName string
 @description('APIM name')
 param apimName string
 
-resource intakeLogicApp 'Microsoft.Logic/workflows@2019-05-01' existing = {
+resource logicAppStandard 'Microsoft.Web/sites@2024-04-01' existing = {
   name: intakeLogicAppName
 }
 
-resource intakeDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+resource logicAppDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: 'send-to-law'
-  scope: intakeLogicApp
+  scope: logicAppStandard
   properties: {
     workspaceId: workspaceId
     logs: [
@@ -32,28 +29,8 @@ resource intakeDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' =
         category: 'WorkflowRuntime'
         enabled: true
       }
-    ]
-    metrics: [
       {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}
-
-resource routerLogicApp 'Microsoft.Logic/workflows@2019-05-01' existing = {
-  name: routerLogicAppName
-}
-
-resource routerDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: 'send-to-law'
-  scope: routerLogicApp
-  properties: {
-    workspaceId: workspaceId
-    logs: [
-      {
-        category: 'WorkflowRuntime'
+        category: 'FunctionAppLogs'
         enabled: true
       }
     ]

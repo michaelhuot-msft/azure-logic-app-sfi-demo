@@ -14,5 +14,8 @@ main.json
 # Claude Code
 .claude/
 
+# Playwright CLI
+.playwright-cli/
+
 # Copyrighted / third-party materials
 *.pdf
