@@ -37,6 +37,8 @@ You should see the two existing Logic Apps (intake and router) that were deploye
 
 ## Step 3: Fill in the Basics
 
+![Create Logic App basics form](screenshots/03-create-basics.png)
+
 | Field | Value |
 |-------|-------|
 | **Resource Group** | `rg-healthcare-referral-demo` (select existing) |
@@ -50,6 +52,9 @@ You should see the two existing Logic Apps (intake and router) that were deploye
 **Talking point:** *"Notice the Conversational Agents and Autonomous Agents options - these are new Preview features that let Logic Apps use AI agents. We'll stick with Stateful for this demo."*
 
 4. Click **Review + create**, then **Create**
+
+![Review and create summary](screenshots/05-review-create.png)
+
 5. Wait for deployment (~30 seconds)
 
 ![Deployment complete](screenshots/06-deployment-complete.png)
@@ -60,7 +65,11 @@ You should see the two existing Logic Apps (intake and router) that were deploye
 
 ## Step 4: Open the Designer
 
-1. Click **Edit** on the Logic App overview page to open the visual designer
+1. On the Logic App overview page, you can see the resource details and run history.
+
+![Logic App overview](screenshots/07-logic-app-overview.png)
+
+2. Click **Edit** to open the visual designer
 
 ![Empty designer](screenshots/08-designer-empty.png)
 
@@ -73,11 +82,15 @@ You should see the two existing Logic Apps (intake and router) that were deploye
 1. Click **Add a trigger**
 2. Search for **Service Bus**
 
+![Searching for triggers](screenshots/09-trigger-search.png)
+
 ![Service Bus triggers](screenshots/10-trigger-service-bus-search.png)
 
 3. Select **When a message is received in a queue (auto-complete)**
 
 The designer will show the connection panel. It should find the existing **Service Bus (Managed Identity)** connection from our deployment.
+
+![Connection configuration](screenshots/11-trigger-connection.png)
 
 ![Connection selection](screenshots/12-change-connection.png)
 
