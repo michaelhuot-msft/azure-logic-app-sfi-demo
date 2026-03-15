@@ -32,6 +32,10 @@ param apimTenantId string = ''
 @description('Deploy Azure Bastion + jumpbox VM for demo access to private resources')
 param deployBastion bool = true
 
+@description('Key Vault create mode — use "recover" to restore a soft-deleted vault after teardown')
+@allowed(['default', 'recover'])
+param keyVaultCreateMode string = 'default'
+
 @secure()
 @description('Admin password for the jumpbox VM (required when deployBastion is true)')
 param jumpboxAdminPassword string = ''
@@ -92,6 +96,7 @@ module keyVault 'modules/key-vault.bicep' = {
     tags: tags
     serviceBusNamespaceName: serviceBus.outputs.namespaceName
     tenantId: subscription().tenantId
+    createMode: keyVaultCreateMode
   }
 }
 

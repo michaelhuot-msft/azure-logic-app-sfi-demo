@@ -15,6 +15,9 @@ param serviceBusNamespaceName string
 @description('Azure AD tenant ID')
 param tenantId string
 
+@description('Set to recover to restore a soft-deleted vault with the same name')
+param createMode string = 'default'
+
 // Key Vault names must be 3-24 chars, alphanumeric + hyphens. baseName can be ~22 chars.
 var vaultName = take('${baseName}-kv', 24)
 
@@ -32,6 +35,7 @@ resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   location: location
   tags: tags
   properties: {
+    createMode: createMode
     sku: {
       family: 'A'
       name: 'standard'

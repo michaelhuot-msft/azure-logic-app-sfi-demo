@@ -68,6 +68,22 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "  Resource group: OK" -ForegroundColor Green
 
+# ---------------------------------------------------------------------------
+# Check for soft-deleted Key Vault (redeploy after teardown scenario)
+# ---------------------------------------------------------------------------
+Write-Host "`n[2b/6] Checking for soft-deleted Key Vault..." -ForegroundColor Cyan
+$keyVaultCreateMode = 'default'
+$deletedVaults = az keyvault list-deleted `
+    --query "[?contains(properties.vaultId, '$ResourceGroupName')].[name]" `
+    -o tsv 2>$null
+if ($deletedVaults) {
+    Write-Host "  Found soft-deleted Key Vault(s): $deletedVaults" -ForegroundColor Yellow
+    Write-Host "  Will use createMode=recover to restore the vault" -ForegroundColor Yellow
+    $keyVaultCreateMode = 'recover'
+} else {
+    Write-Host "  No soft-deleted vaults found for this resource group" -ForegroundColor Green
+}
+
 # If Grafana already exists and the current user already has Grafana Admin,
 # skip passing the admin principal parameter to avoid RoleAssignmentExists on reruns.
 if (-not [string]::IsNullOrWhiteSpace($grafanaAdminPrincipalId)) {
@@ -107,6 +123,10 @@ $deployArgs = @(
 
 if (-not [string]::IsNullOrWhiteSpace($grafanaAdminPrincipalId)) {
     $deployArgs += @('--parameters', "grafanaAdminPrincipalId=$grafanaAdminPrincipalId")
+}
+
+if ($keyVaultCreateMode -ne 'default') {
+    $deployArgs += @('--parameters', "keyVaultCreateMode=$keyVaultCreateMode")
 }
 
 Write-Host "  Deployment name: $deploymentName" -ForegroundColor Gray

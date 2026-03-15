@@ -427,6 +427,31 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 - Use `dependsOn` only when there is no implicit dependency through parameter references
 - Order module declarations in the orchestrator to reflect logical deployment sequence
 
+### Key Vault Soft-Delete Recovery
+
+Key Vault with `enablePurgeProtection: true` cannot be purged after deletion. The vault name remains reserved for the `softDeleteRetentionInDays` period (default: 90 days). Redeployment with the same vault name requires `createMode: 'recover'`.
+
+**Pattern:** Accept a `createMode` parameter in the Key Vault module:
+
+```bicep
+@description('Set to recover to restore a soft-deleted vault')
+param createMode string = 'default'
+
+resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+  properties: {
+    createMode: createMode
+    // ... other properties
+  }
+}
+```
+
+**In deploy scripts:** Check for soft-deleted vaults before deployment:
+
+```powershell
+$deletedVaults = az keyvault list-deleted --query "[?contains(properties.vaultId, '$ResourceGroupName')].[name]" -o tsv 2>$null
+if ($deletedVaults) { $keyVaultCreateMode = 'recover' }
+```
+
 ### Entra RBAC Propagation
 
 ARM and Bicep cannot model Entra ID RBAC propagation timing. Role assignments (e.g., `AcrPull`, `Storage Blob Data Contributor`) take **up to 10 minutes** to propagate after creation. Resources that depend on those roles (Container Apps pulling from ACR, Functions reading from storage) will fail if they deploy before propagation completes.
@@ -628,6 +653,7 @@ az deployment group what-if `
 - Do not commit Bicep changes without running `az bicep build` first
 - Do not assume `dependsOn` a role assignment means the role is active — RBAC propagation is async and can take minutes
 - Do not merge `SecurityControl=Ignore` tags to `main` — use only on feature branches for short-term RBAC debugging, and always revert
+- Do not deploy Key Vault with `createMode: 'default'` without first checking for soft-deleted vaults with the same name — use `az keyvault list-deleted` and switch to `createMode: 'recover'` if needed
 
 ---
 
