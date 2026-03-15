@@ -21,7 +21,9 @@ resource namespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' = {
     capacity: 1
   }
   properties: {
-    publicNetworkAccess: 'Disabled'
+    // Consumption Logic Apps use the shared API connector infrastructure which
+    // connects over the public internet — public access must be enabled.
+    publicNetworkAccess: 'Enabled'
     minimumTlsVersion: '1.2'
     premiumMessagingPartitions: 1
   }
@@ -32,8 +34,8 @@ resource networkRuleSet 'Microsoft.ServiceBus/namespaces/networkRuleSets@2022-10
   parent: namespace
   name: 'default'
   properties: {
-    publicNetworkAccess: 'Disabled'
-    defaultAction: 'Deny'
+    publicNetworkAccess: 'Enabled'
+    defaultAction: 'Allow'
     trustedServiceAccessEnabled: true
     ipRules: []
     virtualNetworkRules: []
